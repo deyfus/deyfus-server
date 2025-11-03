@@ -1,0 +1,24 @@
+
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: deyfus_pg
+    restart: unless-stopped
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_DB: deyfus
+      POSTGRES_USER: deyfus
+      POSTGRES_PASSWORD: deyfus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U deyfus -d deyfus']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  pgdata:
+
