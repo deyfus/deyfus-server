@@ -1,12 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// npx prisma migrate dev --name init_schema
+// npx prisma generate
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -14,11 +9,134 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+enum user_role {
+  admin
+  employee
 }
 
+model users {
+  id             String    @id @default(uuid()) @db.Uuid
+  first_name     String
+  last_name      String
+  email          String    @unique
+  password_hash  String
+  role           user_role @default(employee)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  sales          sales[]   @relation("user_sales")
+
+  @@map("users")
+}
+
+model branches {
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  address     String
+  photos      String[]       @default([])
+  created_at  DateTime       @default(now())
+
+  inventories inventories[]
+  products    products[]
+  sales       sales[]
+
+  @@map("branches")
+}
+
+model inventories {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  address     String
+  description String?
+  branch_id   String?   @db.Uuid
+  created_at  DateTime  @default(now())
+
+  branch      branches? @relation(fields: [branch_id], references: [id], onDelete: SetNull)
+  products    products[]
+
+  @@map("inventories")
+}
+
+model products {
+  id             String            @id @default(uuid()) @db.Uuid
+  name           String
+  description    String?
+  image_urls     String[]          @default([])
+  category       String?
+  brand          String?
+  inventory_id   String?           @db.Uuid
+  branch_id      String?           @db.Uuid
+  created_at     DateTime          @default(now())
+
+  inventory      inventories?      @relation(fields: [inventory_id], references: [id], onDelete: SetNull)
+  branch         branches?         @relation(fields: [branch_id], references: [id], onDelete: SetNull)
+  product_detail product_details?
+  batches        batches[]
+  sale_details   sale_details[]
+
+  @@map("products")
+}
+
+model product_details {
+  id          String   @id @default(uuid()) @db.Uuid
+  size        String?
+  color       String?
+  gender      String?
+  template    String?
+  heel_type   String?
+  product_id  String   @unique @db.Uuid
+
+  product     products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@map("product_details")
+}
+
+model batches {
+  id              String   @id @default(uuid()) @db.Uuid
+  entry_date      DateTime @default(now())
+  expiration_date DateTime?
+  stock           Int      @default(0)
+  qr_code         String?
+  price           Float
+  product_id      String   @db.Uuid
+
+  product         products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@map("batches")
+}
+
+model sales {
+  id             String           @id @default(uuid()) @db.Uuid
+  code           String           @unique
+  date           DateTime         @default(now())
+  subtotal       Float            @default(0)
+  tax_total      Float            @default(0)
+  total          Float            @default(0)
+  employee_id    String           @db.Uuid
+  branch_id      String           @db.Uuid
+  client_id      String?          @db.Uuid
+
+  employee       users            @relation("user_sales", fields: [employee_id], references: [id])
+  branch         branches         @relation(fields: [branch_id], references: [id])
+  sale_details   sale_details[]
+
+  @@map("sales")
+}
+
+model sale_details {
+  id             String   @id @default(uuid()) @db.Uuid
+  sale_id        String   @db.Uuid
+  product_id     String   @db.Uuid
+  unit_price     Float
+  discount       Float?   @default(0)
+  tax            Float?   @default(0)
+  subtotal       Float
+  quantity       Int
+  created_at     DateTime @default(now())
+
+  sale           sales    @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  product        products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@map("sale_details")
+}
